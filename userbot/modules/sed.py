@@ -1,6 +1,6 @@
 # Copyright (C) 2019 The Raphielscape Company LLC.
 #
-# Licensed under the Raphielscape Public License, Version 1.d (the "License");
+# Licensed under the Raphielscape Public License, Version 1.c (the "License");
 # you may not use this file except in compliance with the License.
 #
 # The entire source code is OSSRPL except 'sed' which is GPLv3
@@ -11,7 +11,7 @@ import re
 from sre_constants import error as sre_err
 
 from userbot import CMD_HELP
-from userbot.events import register
+from userbot.events import register, errors_handler
 
 DELIMITERS = ("/", ":", "|", "_")
 
@@ -58,7 +58,8 @@ def separate_sed(sed_string):
     return None
 
 
-@register(outgoing=True, pattern="^sed", ignore_unsafe=True)
+@register(outgoing=True, pattern="^sed")
+@errors_handler
 async def sed(command):
     """ For sed command, use sed on Telegram. """
     sed_result = separate_sed(command.text)
@@ -102,7 +103,7 @@ async def sed(command):
 
 CMD_HELP.update({
     "sed":
-    "sed<delimiter><old word(s)><delimiter><new word(s)>\n"
-    "Usage: Replaces a word or words using sed.\n"
-    "Delimiters: `/, :, |, _`"
+    "sed<delimiter><old word(s)><delimiter><new word(s)>\
+    \nUsage: Replaces a word or words using sed.\
+    \nDelimiters: `/, :, |, _`"
 })

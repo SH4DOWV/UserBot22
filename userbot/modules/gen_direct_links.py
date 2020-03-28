@@ -1,67 +1,68 @@
 # Copyright (C) 2019 The Raphielscape Company LLC.
 #
-# Licensed under the Raphielscape Public License, Version 1.d (the "License");
+# Licensed under the Raphielscape Public License, Version 1.c (the "License");
 # you may not use this file except in compliance with the License.
 #
 """ Userbot module containing various sites direct links generators"""
 
-import json
+from os import popen
 import re
 import urllib.parse
-from os import popen
+import json
 from random import choice
-
 import requests
 from bs4 import BeautifulSoup
 from humanize import naturalsize
 
 from userbot import CMD_HELP
-from userbot.events import register
+from userbot.events import register, errors_handler
 
 
 @register(outgoing=True, pattern=r"^.direct(?: |$)([\s\S]*)")
+@errors_handler
 async def direct_link_generator(request):
     """ direct links generator """
-    await request.edit("`Processing...`")
-    textx = await request.get_reply_message()
-    message = request.pattern_match.group(1)
-    if message:
-        pass
-    elif textx:
-        message = textx.text
-    else:
-        await request.edit("`Usage: .direct <url>`")
-        return
-    reply = ''
-    links = re.findall(r'\bhttps?://.*\.\S+', message)
-    if not links:
-        reply = "`No links found!`"
-        await request.edit(reply)
-    for link in links:
-        if 'drive.google.com' in link:
-            reply += gdrive(link)
-        elif 'zippyshare.com' in link:
-            reply += zippy_share(link)
-        elif 'mega.' in link:
-            reply += mega_dl(link)
-        elif 'yadi.sk' in link:
-            reply += yandex_disk(link)
-        elif 'cloud.mail.ru' in link:
-            reply += cm_ru(link)
-        elif 'mediafire.com' in link:
-            reply += mediafire(link)
-        elif 'sourceforge.net' in link:
-            reply += sourceforge(link)
-        elif 'osdn.net' in link:
-            reply += osdn(link)
-        elif 'github.com' in link:
-            reply += github(link)
-        elif 'androidfilehost.com' in link:
-            reply += androidfilehost(link)
+    if not request.text[0].isalpha() and request.text[0] not in ("/", "#", "@",
+                                                                 "!"):
+        textx = await request.get_reply_message()
+        message = request.pattern_match.group(1)
+        if message:
+            pass
+        elif textx:
+            message = textx.text
         else:
-            reply += '`' + re.findall(r"\bhttps?://(.*?[^/]+)",
-                                      link)[0] + 'is not supported`\n'
-    await request.edit(reply)
+            await request.edit("`Usage: .direct <url> <url>`")
+            return
+        reply = ''
+        links = re.findall(r'\bhttps?://.*\.\S+', message)
+        if not links:
+            reply = "No links found!"
+            await request.edit(reply)
+        for link in links:
+            if 'drive.google.com' in link:
+                reply += gdrive(link)
+            elif 'zippyshare.com' in link:
+                reply += zippy_share(link)
+            elif 'mega.' in link:
+                reply += mega_dl(link)
+            elif 'yadi.sk' in link:
+                reply += yandex_disk(link)
+            elif 'cloud.mail.ru' in link:
+                reply += cm_ru(link)
+            elif 'mediafire.com' in link:
+                reply += mediafire(link)
+            elif 'sourceforge.net' in link:
+                reply += sourceforge(link)
+            elif 'osdn.net' in link:
+                reply += osdn(link)
+            elif 'github.com' in link:
+                reply += github(link)
+            elif 'androidfilehost.com' in link:
+                reply += androidfilehost(link)
+            else:
+                reply += '`' + re.findall(r"\bhttps?://(.*?[^/]+)",
+                                          link)[0] + 'is not supported`\n'
+        await request.edit(reply)
 
 
 def gdrive(url: str) -> str:
@@ -166,10 +167,11 @@ def mega_dl(url: str) -> str:
     except IndexError:
         reply = "`No MEGA.nz links found`\n"
         return reply
-    command = f'bin/megadown -q -m {link}'
+    command = f'megadown -q -m {link}'
     result = popen(command).read()
     try:
         data = json.loads(result)
+        print(data)
     except json.JSONDecodeError:
         reply += "`Error: Can't extract the link`\n"
         return reply
@@ -189,7 +191,7 @@ def cm_ru(url: str) -> str:
     except IndexError:
         reply = "`No cloud.mail.ru links found`\n"
         return reply
-    command = f'bin/cmrudl -s {link}'
+    command = f'cmrudl -s {link}'
     result = popen(command).read()
     result = result.splitlines()[-1]
     try:
