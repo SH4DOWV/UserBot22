@@ -1,427 +1,266 @@
 # Copyright (C) 2019 The Raphielscape Company LLC.
 #
-# Licensed under the Raphielscape Public License, Version 1.c (the "License");
+# Licensed under the Raphielscape Public License, Version 1.d (the "License");
 # you may not use this file except in compliance with the License.
 #
 """ Userbot module containing various scrapers. """
 
 import os
-from asyncio import create_subprocess_shell as asyncsh
-from asyncio.subprocess import PIPE as asyncsh_PIPE
-from html import unescape
 from re import findall
-from urllib import parse
+from shutil import rmtree
 from urllib.error import HTTPError
-from googlesearch import search
+
 from emoji import get_emoji_regexp
 from google_images_download import google_images_download
-from googleapiclient.discovery import build
-from googleapiclient.errors import HttpError
 from googletrans import LANGUAGES, Translator
-from gtts import gTTS
-from pytube import YouTube
-from pytube.helpers import safe_filename
+from gtts import gTTS, gTTSError
 from requests import get
+from search_engine_parser import GoogleSearch
 from urbandict import define
 from wikipedia import summary
 from wikipedia.exceptions import DisambiguationError, PageError
 
-from userbot import CMD_HELP, BOTLOG, BOTLOG_CHATID, YOUTUBE_API_KEY, CURRENCY_API, bot
-from userbot.events import register, errors_handler
+from userbot import (BOTLOG, BOTLOG_CHATID, CMD_HELP, WOLFRAM_ID)
+from userbot.events import register, grp_exclude
 
-LANG = "en"
+# Default language to EN
+LANG = "it"
 
 
 @register(outgoing=True, pattern="^.img (.*)")
-@errors_handler
+@grp_exclude()
 async def img_sampler(event):
     """ For .img command, search and return images matching the query. """
-    if not event.text[0].isalpha() and event.text[0] not in ("/", "#", "@",
-                                                             "!"):
-        await event.edit("Processing...")
-        query = event.pattern_match.group(1)
-        lim = findall(r"lim=\d+", query)
-        try:
-            lim = lim[0]
-            lim = lim.replace("lim=", "")
-            query = query.replace("lim=" + lim[0], "")
-        except IndexError:
-            lim = 2
-        response = google_images_download.googleimagesdownload()
+    await event.edit("Caricando...")
+    query = event.pattern_match.group(1)
+    lim = findall(r"lim=\d+", query)
+    try:
+        lim = lim[0]
+        lim = lim.replace("lim=", "")
+        query = query.replace("lim=" + lim[0], "")
+    except IndexError:
+        lim = 2
+    response = google_images_download.googleimagesdownload()
 
-        # creating list of arguments
-        arguments = {
-            "keywords": query,
-            "limit": lim,
-            "format": "jpg",
-            "no_directory": "no_directory"
-        }
+    # creating list of arguments
+    arguments = {
+        "keywords": query,
+        "limit": lim,
+        "format": "jpg",
+        "no_directory": "no_directory"
+    }
 
-        # passing the arguments to the function
-        paths = response.download(arguments)
-        lst = paths[0][query]
-        await event.client.send_file(
-            await event.client.get_input_entity(event.chat_id), lst)
-        os.remove(lst[0])
-        os.remove(lst[1])
-        os.rmdir(os.path.dirname(os.path.abspath(lst[0])))
-        await event.delete()
+    # passing the arguments to the function
+    paths = response.download(arguments)
+    lst = paths[0][query]
+    await event.client.send_file(
+        await event.client.get_input_entity(event.chat_id), lst)
+    rmtree(os.path.dirname(os.path.abspath(lst[0])))
+    await event.delete()
 
 
-@register(outgoing=True, pattern=r"^.google (.*)")
-@errors_handler
+@register(outgoing=True, pattern=r"^.google(?: |$)(.*)")
+@grp_exclude()
 async def gsearch(q_event):
     """ For .google command, do a Google search. """
-    if not q_event.text[0].isalpha() and q_event.text[0] not in ("/", "#", "@",
-                                                                 "!"):
-        await q_event.edit("`Searching...`")
-        match_ = q_event.pattern_match.group(1)
-        match = parse.quote_plus(match_)
-        result = ""
-        for i in search(match, stop=8):
-            result += i
-            result += "\n"
-        await q_event.edit("**Search Query:**\n`" + match_ +
-                           "`\n\n**Result:**\n" + result)
-        if BOTLOG:
-            await q_event.client.send_message(
-                BOTLOG_CHATID,
-                "Google Search query " + match_ + " was executed successfully",
-            )
+    textx = await q_event.get_reply_message()
+    query = q_event.pattern_match.group(1)
+
+    if query:
+        pass
+    elif textx:
+        query = textx.text
+    else:
+        await q_event.edit("`Scrivi un testo con cosa cercare o rispondi "
+                           "a un messaggio per una ricerca su Google!`")
+        return
+
+    await q_event.edit("`Cercando...`")
+
+    search_args = (str(query), 1)
+    googsearch = GoogleSearch()
+    gresults = await googsearch.async_search(*search_args)
+    msg = ""
+    for i in range(1, 6):
+        try:
+            title = gresults["titoli"][i]
+            link = gresults["links"][i]
+            desc = gresults["descrizioni"][i]
+            msg += f"{i}. [{title}]({link})\n`{desc}`\n\n"
+        except IndexError:
+            break
+    await q_event.edit("**Risultati Ricerca:**\n`" + query + "`\n\n**Risultati:**\n" +
+                       msg,
+                       link_preview=False)
+    if BOTLOG:
+        await q_event.client.send_message(
+            BOTLOG_CHATID,
+            "Ricerca Google di `" + query + "` eseguita con successo",
+        )
 
 
 @register(outgoing=True, pattern=r"^.wiki (.*)")
-@errors_handler
+@grp_exclude()
 async def wiki(wiki_q):
     """ For .google command, fetch content from Wikipedia. """
-    if not wiki_q.text[0].isalpha() and wiki_q.text[0] not in ("/", "#", "@",
-                                                               "!"):
-        match = wiki_q.pattern_match.group(1)
-        try:
-            summary(match)
-        except DisambiguationError as error:
-            await wiki_q.edit(f"Disambiguated page found.\n\n{error}")
-            return
-        except PageError as pageerror:
-            await wiki_q.edit(f"Page not found.\n\n{pageerror}")
-            return
-        result = summary(match)
-        if len(result) >= 4096:
-            file = open("output.txt", "w+")
-            file.write(result)
-            file.close()
-            await wiki_q.client.send_file(
-                wiki_q.chat_id,
-                "output.txt",
-                reply_to=wiki_q.id,
-                caption="`Output too large, sending as file`",
-            )
-            if os.path.exists("output.txt"):
-                os.remove("output.txt")
-            return
-        await wiki_q.edit("**Search:**\n`" + match + "`\n\n**Result:**\n" +
-                          result)
-        if BOTLOG:
-            await wiki_q.client.send_message(
-                BOTLOG_CHATID, f"Wiki query {match} was executed successfully")
+    match = wiki_q.pattern_match.group(1)
+    try:
+        summary(match)
+    except DisambiguationError as error:
+        await wiki_q.edit(f"Pagina inadatta trovata.\n\n{error}")
+        return
+    except PageError as pageerror:
+        await wiki_q.edit(f"Pagina non trovata.\n\n{pageerror}")
+        return
+    result = summary(match)
+    if len(result) >= 4096:
+        file = open("output.txt", "w+")
+        file.write(result)
+        file.close()
+        await wiki_q.client.send_file(
+            wiki_q.chat_id,
+            "output.txt",
+            reply_to=wiki_q.id,
+            caption="`Output troppo grande, mando direttamente un file`",
+        )
+        if os.path.exists("output.txt"):
+            os.remove("output.txt")
+        return
+    await wiki_q.edit("**Ricerca:**\n`" + match + "`\n\n**Risultati:**\n" + result)
+    if BOTLOG:
+        await wiki_q.client.send_message(
+            BOTLOG_CHATID, f"Ricerca su Wiki {match} eseguita con successo")
 
 
 @register(outgoing=True, pattern="^.ud (.*)")
-@errors_handler
+@grp_exclude()
 async def urban_dict(ud_e):
     """ For .ud command, fetch content from Urban Dictionary. """
-    if not ud_e.text[0].isalpha() and ud_e.text[0] not in ("/", "#", "@", "!"):
-        await ud_e.edit("Processing...")
-        query = ud_e.pattern_match.group(1)
-        try:
-            define(query)
-        except HTTPError:
-            await ud_e.edit(f"Sorry, couldn't find any results for: {query}")
+    await ud_e.edit("Caricando...")
+    query = ud_e.pattern_match.group(1)
+    try:
+        define(query)
+    except HTTPError:
+        await ud_e.edit(f"Spiacente, nessun risultato trovato per: {query}")
+        return
+    mean = define(query)
+    deflen = sum(len(i) for i in mean[0]["definizione"])
+    exalen = sum(len(i) for i in mean[0]["esempio"])
+    meanlen = deflen + exalen
+    if int(meanlen) >= 0:
+        if int(meanlen) >= 4096:
+            await ud_e.edit("`Output troppo grande, lo invio come file.`")
+            file = open("output.txt", "w+")
+            file.write("Testo: " + query + "\n\nSignificato: " + mean[0]["definizione"] +
+                       "\n\n" + "Esempio: \n" + mean[0]["esempio"])
+            file.close()
+            await ud_e.client.send_file(
+                ud_e.chat_id,
+                "output.txt",
+                caption="`Output troppo grande, lo invio come file.`")
+            if os.path.exists("output.txt"):
+                os.remove("output.txt")
+            await ud_e.delete()
             return
-        mean = define(query)
-        deflen = sum(len(i) for i in mean[0]["def"])
-        exalen = sum(len(i) for i in mean[0]["example"])
-        meanlen = deflen + exalen
-        if int(meanlen) >= 0:
-            if int(meanlen) >= 4096:
-                await ud_e.edit("`Output too large, sending as file.`")
-                file = open("output.txt", "w+")
-                file.write("Text: " + query + "\n\nMeaning: " +
-                           mean[0]["def"] + "\n\n" + "Example: \n" +
-                           mean[0]["example"])
-                file.close()
-                await ud_e.client.send_file(
-                    ud_e.chat_id,
-                    "output.txt",
-                    caption="`Output was too large, sent it as a file.`")
-                if os.path.exists("output.txt"):
-                    os.remove("output.txt")
-                await ud_e.delete()
-                return
-            await ud_e.edit("Text: **" + query + "**\n\nMeaning: **" +
-                            mean[0]["def"] + "**\n\n" + "Example: \n__" +
-                            mean[0]["example"] + "__")
-            if BOTLOG:
-                await ud_e.client.send_message(
-                    BOTLOG_CHATID,
-                    "ud query " + query + " executed successfully.")
-        else:
-            await ud_e.edit("No result found for **" + query + "**")
+        await ud_e.edit("Testo: **" + query + "**\n\nSignificato: **" +
+                        mean[0]["definizione"] + "**\n\n" + "Esempio: \n__" +
+                        mean[0]["esempio"] + "__")
+        if BOTLOG:
+            await ud_e.client.send_message(
+                BOTLOG_CHATID, "Ricerca dizionario " + query + " eseguita con successo.")
+    else:
+        await ud_e.edit("Nessun risultato trovato per **" + query + "**")
 
 
 @register(outgoing=True, pattern=r"^.tts(?: |$)([\s\S]*)")
-@errors_handler
+@grp_exclude()
 async def text_to_speech(query):
     """ For .tts command, a wrapper for Google Text-to-Speech. """
-    if not query.text[0].isalpha() and query.text[0] not in ("/", "#", "@",
-                                                             "!"):
-        textx = await query.get_reply_message()
-        message = query.pattern_match.group(1)
-        if message:
-            pass
-        elif textx:
-            message = textx.text
-        else:
-            await query.edit("`Give a text or reply to a "
-                             "message for Text-to-Speech!`")
-            return
+    textx = await query.get_reply_message()
+    message = query.pattern_match.group(1)
+    if message:
+        pass
+    elif textx:
+        message = textx.text
+    else:
+        await query.edit("`Scrivi o rispondi ad un "
+                         "messaggio per un Testo-a-Voce!`")
+        return
 
-        try:
-            gTTS(message, LANG)
-        except AssertionError:
-            await query.edit('The text is empty.\n'
-                             'Nothing left to speak after pre-precessing, '
-                             'tokenizing and cleaning.')
-            return
-        except ValueError:
-            await query.edit('Language is not supported.')
-            return
-        except RuntimeError:
-            await query.edit('Error loading the languages dictionary.')
-            return
-        tts = gTTS(message, LANG)
+    try:
+        tts = gTTS(message, tld='com', lang=LANG)
         tts.save("k.mp3")
-        with open("k.mp3", "rb") as audio:
-            linelist = list(audio)
-            linecount = len(linelist)
-        if linecount == 1:
-            tts = gTTS(message, LANG)
-            tts.save("k.mp3")
-        with open("k.mp3", "r"):
-            await query.client.send_file(query.chat_id,
-                                         "k.mp3",
-                                         voice_note=True)
-            os.remove("k.mp3")
-            if BOTLOG:
-                await query.client.send_message(
-                    BOTLOG_CHATID,
-                    "tts of " + message + " executed successfully!")
-            await query.delete()
+    except AssertionError:
+        await query.edit('Il testo è vuoto.\n'
+                         'Niente da dire dopo il pre-caricamento, '
+                         'cancellando e rimuovendo.')
+        return
+    except ValueError:
+        await query.edit('Linguaggio non supportato.')
+        return
+    except RuntimeError:
+        await query.edit('Errore caricando i vocaboli.')
+        return
+    except gTTSError:
+        await query.edit('Errore in Google Text-to-Speech richiesta API! '
+                         'Controlla i Log per i dettagli.')
+        return
+
+    with open("k.mp3", "r"):
+        await query.client.send_file(query.chat_id, "k.mp3", voice_note=True)
+        os.remove("k.mp3")
+        if BOTLOG:
+            await query.client.send_message(
+                BOTLOG_CHATID, "TTS di " + message + " eseguito con successo!")
+        await query.delete()
 
 
 @register(outgoing=True, pattern=r"^.trt(?: |$)([\s\S]*)")
-@errors_handler
+@grp_exclude()
 async def translateme(trans):
     """ For .trt command, translate the given text using Google Translate. """
-    if not trans.text[0].isalpha() and trans.text[0] not in ("/", "#", "@",
-                                                             "!"):
-        translator = Translator()
-        textx = await trans.get_reply_message()
-        message = trans.pattern_match.group(1)
-        if message:
-            pass
-        elif textx:
-            message = textx.text
-        else:
-            await trans.edit("`Give a text or reply "
-                             "to a message to translate!`")
-            return
+    translator = Translator()
+    textx = await trans.get_reply_message()
+    message = trans.pattern_match.group(1)
+    if message:
+        pass
+    elif textx:
+        message = textx.text
+    else:
+        await trans.edit("`Scrivi o rispondi "
+                         "ad un messaggio per tradurlo!`")
+        return
 
-        try:
-            reply_text = translator.translate(deEmojify(message), dest=LANG)
-        except ValueError:
-            await trans.edit("Invalid destination language.")
-            return
+    try:
+        reply_text = translator.translate(deEmojify(message), dest=LANG)
+    except ValueError:
+        await trans.edit("Linguaggio selezionato non valido.")
+        return
 
-        source_lan = LANGUAGES[f'{reply_text.src.lower()}']
-        transl_lan = LANGUAGES[f'{reply_text.dest.lower()}']
-        reply_text = f"**Source ({source_lan.title()}):**`\n{message}`**\n\
-\nTranslation ({transl_lan.title()}):**`\n{reply_text.text}`"
+    source_lan = LANGUAGES[f'{reply_text.src.lower()}']
+    transl_lan = LANGUAGES[f'{reply_text.dest.lower()}']
+    reply_text = f"**Preso da ({source_lan.title()}):**`\n{message}`**\n\
+\nTraduzione ({transl_lan.title()}):**`\n{reply_text.text}`"
 
-        await trans.client.send_message(trans.chat_id, reply_text)
-        await trans.delete()
-        if BOTLOG:
-            await trans.client.send_message(
-                BOTLOG_CHATID,
-                f"Translate query {message} was executed successfully",
-            )
+    await trans.client.send_message(trans.chat_id, reply_text)
+    await trans.delete()
+    if BOTLOG:
+        await trans.client.send_message(
+            BOTLOG_CHATID,
+            f"Traduzione di {message} eseguita con successo",
+        )
 
 
-@register(pattern=".lang (.*)", outgoing=True)
-@errors_handler
+@register(pattern="^.lang (.*)", outgoing=True)
+@grp_exclude()
 async def lang(value):
     """ For .lang command, change the default langauge of userbot scrapers. """
-    if not value.text[0].isalpha() and value.text[0] not in ("/", "#", "@",
-                                                             "!"):
-        global LANG
-        LANG = value.pattern_match.group(1)
-        await value.edit("Default language changed to **" + LANG + "**")
-        if BOTLOG:
-            await value.client.send_message(
-                BOTLOG_CHATID, "Default language changed to **" + LANG + "**")
-
-
-@register(outgoing=True, pattern="^.yt (.*)")
-@errors_handler
-async def yt_search(video_q):
-    """ For .yt command, do a YouTube search from Telegram. """
-    if not video_q.text[0].isalpha() and video_q.text[0] not in ("/", "#", "@",
-                                                                 "!"):
-        query = video_q.pattern_match.group(1)
-        result = ''
-        i = 1
-
-        if not YOUTUBE_API_KEY:
-            await video_q.edit("`Error: YouTube API key missing!\
-                Add it to environment vars or config.env.`")
-            return
-
-        await video_q.edit("```Processing...```")
-
-        full_response = youtube_search(query)
-        videos_json = full_response[1]
-
-        for video in videos_json:
-            result += f"{i}. {unescape(video['snippet']['title'])} \
-\nhttps://www.youtube.com/watch?v={video['id']['videoId']}\n"
-
-            i += 1
-
-        reply_text = f"**Search Query:**\n`{query}`\n\n**Result:**\n{result}"
-
-        await video_q.edit(reply_text)
-
-
-def youtube_search(query,
-                   order="relevance",
-                   token=None,
-                   location=None,
-                   location_radius=None):
-    """ Do a YouTube search. """
-    youtube = build('youtube',
-                    'v3',
-                    developerKey=YOUTUBE_API_KEY,
-                    cache_discovery=False)
-    search_response = youtube.search().list(
-        q=query,
-        type="video",
-        pageToken=token,
-        order=order,
-        part="id,snippet",
-        maxResults=10,
-        location=location,
-        locationRadius=location_radius).execute()
-
-    videos = []
-
-    for search_result in search_response.get("items", []):
-        if search_result["id"]["kind"] == "youtube#video":
-            videos.append(search_result)
-    try:
-        nexttok = search_response["nextPageToken"]
-        return (nexttok, videos)
-    except HttpError:
-        nexttok = "last_page"
-        return (nexttok, videos)
-    except KeyError:
-        nexttok = "KeyError, try again."
-        return (nexttok, videos)
-
-
-@register(outgoing=True, pattern=r".yt_dl (\S*) ?(\S*)")
-@errors_handler
-async def download_video(v_url):
-    """ For .yt_dl command, download videos from YouTube. """
-    if not v_url.text[0].isalpha() and v_url.text[0] not in ("/", "#", "@",
-                                                             "!"):
-        url = v_url.pattern_match.group(1)
-        quality = v_url.pattern_match.group(2)
-
-        await v_url.edit("**Fetching...**")
-
-        video = YouTube(url)
-
-        if quality:
-            video_stream = video.streams.filter(progressive=True,
-                                                subtype="mp4",
-                                                res=quality).first()
-        else:
-            video_stream = video.streams.filter(progressive=True,
-                                                subtype="mp4").first()
-
-        if video_stream is None:
-            all_streams = video.streams.filter(progressive=True,
-                                               subtype="mp4").all()
-            available_qualities = ""
-
-            for item in all_streams[:-1]:
-                available_qualities += f"{item.resolution}, "
-            available_qualities += all_streams[-1].resolution
-
-            await v_url.edit("**A stream matching your query wasn't found. "
-                             "Try again with different options.\n**"
-                             "**Available Qualities:**\n"
-                             f"{available_qualities}")
-            return
-
-        video_size = video_stream.filesize / 1000000
-
-        if video_size >= 50:
-            await v_url.edit(
-                ("**File larger than 50MB. Sending the link instead.\n**"
-                 f"Get the video [here]({video_stream.url})\n\n"
-                 "**If the video plays instead of downloading, "
-                 "right click(or long press on touchscreen) and "
-                 "press 'Save Video As...'(may depend on the browser) "
-                 "to download the video.**"))
-            return
-
-        await v_url.edit("**Downloading...**")
-
-        video_stream.download(filename=video.title)
-
-        url = f"https://img.youtube.com/vi/{video.video_id}/maxresdefault.jpg"
-        resp = get(url)
-        with open('thumbnail.jpg', 'wb') as file:
-            file.write(resp.content)
-
-        await v_url.edit("**Uploading...**")
-        await bot.send_file(v_url.chat_id,
-                            f'{safe_filename(video.title)}.mp4',
-                            caption=f"{video.title}",
-                            thumb="thumbnail.jpg")
-
-        os.remove(f"{safe_filename(video.title)}.mp4")
-        os.remove('thumbnail.jpg')
-        await v_url.delete()
-
-
-@register(outgoing=True, pattern=r".cr (\S*) ?(\S*) ?(\S*)")
-async def currency(cconvert):
-    """ For .cr command, convert amount, from, to. """
-    if not cconvert.text[0].isalpha() and cconvert.text[0] not in ("/", "#",
-                                                                   "@", "!"):
-        amount = cconvert.pattern_match.group(1)
-        currency_from = cconvert.pattern_match.group(3).upper()
-        currency_to = cconvert.pattern_match.group(2).upper()
-        data = get(
-            f"https://free.currconv.com/api/v7/convert?apiKey={CURRENCY_API}&q={currency_from}_{currency_to}&compact=ultra"
-        ).json()
-        result = data[f'{currency_from}_{currency_to}']
-        result = float(amount) / float(result)
-        result = round(result, 5)
-        await cconvert.edit(
-            f"{amount} {currency_to} is:\n`{result} {currency_from}`")
+    global LANG
+    LANG = value.pattern_match.group(1)
+    await value.edit("Linguaggio predefinito cambiato a **" + LANG + "**")
+    if BOTLOG:
+        await value.client.send_message(
+            BOTLOG_CHATID, "Linguaggio predefinito cambiato a **" + LANG + "**")
 
 
 def deEmojify(inputString):
@@ -429,53 +268,37 @@ def deEmojify(inputString):
     return get_emoji_regexp().sub(u'', inputString)
 
 
+@register(outgoing=True, pattern=r'^.wolfram (.*)')
+@grp_exclude()
+async def wolfram(wvent):
+    """ Wolfram Alpha API """
+    if WOLFRAM_ID is None:
+        await wvent.edit(
+            'Please set your WOLFRAM_ID first !\n'
+            'Get your API KEY from [here](https://'
+            'products.wolframalpha.com/api/)',
+            parse_mode='Markdown')
+        return
+    i = wvent.pattern_match.group(1)
+    appid = WOLFRAM_ID
+    server = f'https://api.wolframalpha.com/v1/spoken?appid={appid}&i={i}'
+    res = get(server)
+    await wvent.edit(f'**{i}**\n\n' + res.text, parse_mode='Markdown')
+    if BOTLOG:
+        await wvent.client.send_message(
+            BOTLOG_CHATID, f'.wolfram {i} was executed successfully')
+
+
 CMD_HELP.update({
-    'img':
-    ".img <search_query>\
-    \nUsage: Does an image search on Google and shows two images."
-})
-CMD_HELP.update({
-    'google':
-    ".google <search_query>\
-    \nUsage: Does a search on Google."
-})
-CMD_HELP.update(
-    {'wiki': ".wiki <search_query>\
-    \nUsage: Does a Wikipedia search."})
-CMD_HELP.update({
-    'ud':
-    ".ud <search_query>\
-    \nUsage: Does a search on Urban Dictionary."
-})
-CMD_HELP.update({
-    'tts':
-    ".tts <text> or reply to someones text with .trt\
-    \nUsage: Translates text to speech for the default language which is set."
-})
-CMD_HELP.update({
-    'trt':
-    ".trt <text> or reply to someones text with .trt\
-    \nUsage: Translates text to the default language which is set."
-})
-CMD_HELP.update({
-    'lang':
-    ".lang <lang>\
-    \nUsage: Changes the default language of"
-    "userbot scrapers used for Google TRT, "
-    "TTS may not work."
-})
-CMD_HELP.update(
-    {'yt': ".yt <search_query>\
-    \nUsage: Does a YouTube search. "})
-CMD_HELP.update({
-    'yt_dl':
-    ".yt_dl <url> <quality>(optional)\
-    \nUsage: Download videos from YouTube. \
-If no quality is specified, the highest downloadable quality is downloaded. \
-Will send the link if the video is larger than 50 MB."
-})
-CMD_HELP.update({
-    'cr':
-    ".cr <from> <to>\
-    \nUsage: Currency converter, converts <from> to <to>."
+    "scrapers": [
+        'Scrapers',
+        " - `.img <query> lim=<n>`: Do an Image Search on Google and send n results. Default is 2.\n"
+        " - `.google <query>`: Search Google for query (argument or reply).\n"
+        " - `.wiki <query>`: Search Wikipedia for query.\n"
+        " - `.ud <query>`: Search on Urban Dictionary for query.\n"
+        " - `.tts <query>`: Text-to-Speech the query (argument or reply) to the saved language.\n"
+        " - `.trt <query>`: Translate the query (argument or reply) to the saved language.\n"
+        " - `.lang <lang>`: Changes the default language of trt and TTS modules.\n"
+        " - `.wolfram <query>: Get answers to questions using WolframAlpha Spoken Results API."
+    ]
 })

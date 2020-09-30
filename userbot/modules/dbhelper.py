@@ -405,3 +405,93 @@ async def is_gban(chatid):
         return False
     else:
         return True
+
+
+# Time
+async def get_time():
+    return MONGO.misc.find_one({'timec': {
+        '$exists': True
+    }}, {
+        'timec': 1,
+        'timezone': 1
+    })
+
+
+async def set_time(country, timezone=1):
+    to_check = await get_time()
+
+    if to_check:
+        MONGO.misc.update_one(
+            {
+                '_id': to_check['_id'],
+                'timec': to_check['timec'],
+                'timezone': to_check['timezone']
+            }, {"$set": {
+                'timec': country,
+                'timezone': timezone
+            }})
+    else:
+        MONGO.misc.insert_one({'timec': country, 'timezone': timezone})
+
+
+# Weather
+async def get_weather():
+    return MONGO.misc.find_one({'weather_city': {
+        '$exists': True
+    }}, {'weather_city': 1})
+
+
+async def set_weather(city):
+    to_check = await get_weather()
+
+    if to_check:
+        MONGO.misc.update_one(
+            {
+                '_id': to_check['_id'],
+                'weather_city': to_check['weather_city']
+            }, {"$set": {
+                'weather_city': city
+            }})
+    else:
+        MONGO.misc.insert_one({'weather_city': city})
+
+
+# Paperplane Exclude
+async def get_excludes():
+    return MONGO.excludes.find()
+
+
+async def get_exclude(chatid):
+    return MONGO.excludes.find_one({'chatid': chatid})
+
+
+async def add_exclude_group(chatid, excl_type=1):
+    is_excl = await get_exclude(chatid)
+
+    if is_excl:
+        MONGO.excludes.update_one(
+            {
+                '_id': is_excl['_id'],
+                'chatid': is_excl['chatid'],
+                'excl_type': is_excl['excl_type']
+            }, {"$set": {
+                'chatid': chatid,
+                'excl_type': excl_type
+            }})
+    else:
+        MONGO.excludes.insert_one({'chatid': chatid, 'excl_type': excl_type})
+
+
+async def remove_exclude_group(chatid):
+    if await is_excluded(chatid) is False:
+        return False
+    else:
+        MONGO.excludes.delete_one({'chatid': chatid})
+        return True
+
+
+async def is_excluded(chatid):
+    if not await get_exclude(chatid):
+        return False
+    else:
+        return True
