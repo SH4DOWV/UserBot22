@@ -10,11 +10,11 @@ from asyncio import sleep
 from telethon.errors import rpcbaseerrors
 
 from userbot import BOTLOG, BOTLOG_CHATID, CMD_HELP
-from userbot.events import register, errors_handler
+from userbot.events import register, grp_exclude
 
 
 @register(outgoing=True, pattern="^.purge$")
-@errors_handler
+@grp_exclude()
 async def fastpurger(purg):
     """ For .purge command, purge all messages starting from the reply. """
     if not purg.text[0].isalpha() and purg.text[0] not in ("/", "#", "@", "!"):
@@ -49,7 +49,7 @@ async def fastpurger(purg):
 
 
 @register(outgoing=True, pattern="^.purgeme")
-@errors_handler
+@grp_exclude()
 async def purgeme(delme):
     """ For .purgeme, delete x count of your latest message."""
     if not delme.text[0].isalpha() and delme.text[0] not in ("/", "#", "@",
@@ -81,7 +81,7 @@ async def purgeme(delme):
 
 
 @register(outgoing=True, pattern="^.del$")
-@errors_handler
+@grp_exclude()
 async def delete_it(delme):
     """ For .del command, delete the replied message. """
     if not delme.text[0].isalpha() and delme.text[0] not in ("/", "#", "@",
@@ -101,7 +101,7 @@ async def delete_it(delme):
 
 
 @register(outgoing=True, pattern="^.editme")
-@errors_handler
+@grp_exclude()
 async def editer(edit):
     """ For .editme command, edit your last message. """
     if not edit.text[0].isalpha() and edit.text[0] not in ("/", "#", "@", "!"):
@@ -122,7 +122,7 @@ async def editer(edit):
 
 
 @register(outgoing=True, pattern="^.sd")
-@errors_handler
+@grp_exclude()
 async def selfdestruct(destroy):
     """ For .sd command, make seflf-destructable messages. """
     if not destroy.text[0].isalpha() and destroy.text[0] not in ("/", "#", "@",

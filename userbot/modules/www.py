@@ -12,11 +12,11 @@ import speedtest
 from telethon import functions
 
 from userbot import CMD_HELP
-from userbot.events import register, errors_handler
+from userbot.events import register, grp_exclude
 
 
 @register(outgoing=True, pattern="^.speed$")
-@errors_handler
+@grp_exclude()
 async def speedtst(spd):
     """ For .speed command, use SpeedTest to check server speeds. """
     if not spd.text[0].isalpha() and spd.text[0] not in ("/", "#", "@", "!"):
@@ -56,7 +56,7 @@ def speed_convert(size):
 
 
 @register(outgoing=True, pattern="^.mydc$")
-@errors_handler
+@grp_exclude()
 async def neardc(event):
     """ For .nearestdc command, get the nearest datacenter information. """
     result = await event.client(functions.help.GetNearestDcRequest())
@@ -66,7 +66,7 @@ async def neardc(event):
 
 
 @register(outgoing=True, pattern="^.ping$")
-@errors_handler
+@grp_exclude()
 async def pingme(pong):
     """ FOr .pingme command, ping the userbot from any chat.  """
     if not pong.text[0].isalpha() and pong.text[0] not in ("/", "#", "@", "!"):

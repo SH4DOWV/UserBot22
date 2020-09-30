@@ -13,7 +13,7 @@ from git import Repo
 from git.exc import GitCommandError, InvalidGitRepositoryError, NoSuchPathError
 
 from userbot import CMD_HELP
-from userbot.events import register, errors_handler
+from userbot.events import register, grp_exclude
 
 
 async def gen_chlog(repo, diff):
@@ -33,7 +33,7 @@ async def is_off_br(br):
 
 
 @register(outgoing=True, pattern="^.update(?: |$)(.*)")
-@errors_handler
+@grp_exclude()
 async def upstream(ups):
     "For .update command, check if the bot is up to date, update if specified"
     if not ups.text[0].isalpha() and ups.text[0] not in ("/", "#", "@", "!"):

@@ -6,7 +6,7 @@ import time
 from cowpy import cow
 
 from userbot import CMD_HELP, ZALG_LIST
-from userbot.events import register, errors_handler
+from userbot.events import register, grp_exclude
 
 EMOJIS = [
 "❤️",
@@ -17,7 +17,7 @@ EMOJIS = [
 ]
 
 @register(outgoing=True, pattern="^.love(?: |$)(.*)")
-@errors_handler
+@grp_exclude()
 async def claptext(memereview):
     """ Praise people! """
     if not memereview.text[0].isalpha() and memereview.text[0] not in (

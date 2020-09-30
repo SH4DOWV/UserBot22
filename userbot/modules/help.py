@@ -6,11 +6,11 @@
 """ Userbot help command """
 
 from userbot import CMD_HELP
-from userbot.events import register, errors_handler
+from userbot.events import register, grp_exclude
 
 
 @register(outgoing=True, pattern="^.help(?: |$)(.*)")
-@errors_handler
+@grp_exclude()
 async def help(event):
     """ For .help command,"""
     if not event.text[0].isalpha() and event.text[0] not in ("/", "#", "@",

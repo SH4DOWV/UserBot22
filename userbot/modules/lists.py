@@ -10,7 +10,7 @@ from userbot import (BOTLOG, BOTLOG_CHATID, CMD_HELP, is_mongo_alive,
                      is_redis_alive)
 from userbot.modules.dbhelper import (get_list, get_lists, add_list,
                                       delete_list, set_list)
-from userbot.events import register, errors_handler
+from userbot.events import register, grp_exclude
 
 # =================== CONSTANTS ===================
 
@@ -18,13 +18,13 @@ DB_FAILED = "`Database connections failed!`"
 NO_LISTS = "`There are no saved lists in this chat or globally.`"
 CHK_HELP = "`Check `**.help lists**` for more info about Lists.`"
 LIST_NOT_FOUND = "`List {} not found!`"
-LIST_HEADER = "[Paperplane-List] List **{}({})**\n\n"
+LIST_HEADER = "List **{}({})**\n\n"
 
 # =================================================
 
 
 @register(outgoing=True, pattern="^.lists$")
-@errors_handler
+@grp_exclude()
 async def lists_active(event):
     """ For .lists command, list all of the lists saved in a chat. """
     cmd = event.text[0]
@@ -47,7 +47,7 @@ async def lists_active(event):
 
 
 @register(outgoing=True, pattern=r"^.dellist ?(\w*)")
-@errors_handler
+@grp_exclude()
 async def removelists(event):
     """ For .dellist command, delete list with the given name."""
     cmd = event.text[0]
@@ -85,7 +85,7 @@ async def removelists(event):
 
 
 @register(outgoing=True, pattern=r"^.add(g)?list (\w*)")
-@errors_handler
+@grp_exclude()
 async def addlist(event):
     """ For .add(g)list command, saves lists in a chat. """
     cmd = event.text[0]
@@ -115,7 +115,7 @@ async def addlist(event):
 
 
 @register(outgoing=True, pattern=r"^.addlistitem(s)? ?(\w*)\n((.|\n*)*)")
-@errors_handler
+@grp_exclude()
 async def add_list_items(event):
     """ For .addlistitems command, add item(s) to a list. """
     cmd = event.text[0]
@@ -169,7 +169,7 @@ async def add_list_items(event):
 
 
 @register(outgoing=True, pattern=r"^.editlistitem ?(\w*)? ([0-9]+) (.*)")
-@errors_handler
+@grp_exclude()
 async def edit_list_item(event):
     """ For .editlistitem command, edit an individual item on a list. """
     cmd = event.text[0]
@@ -214,7 +214,7 @@ async def edit_list_item(event):
 
 
 @register(outgoing=True, pattern=r"^.rmlistitem ?(\w*)? ([0-9]+)")
-@errors_handler
+@grp_exclude()
 async def rmlistitems(event):
     """ For .rmlistitem command, remove an item from the list. """
     cmd = event.text[0]
@@ -269,7 +269,7 @@ Use` ${} `to get the list.`"
 
 
 @register(outgoing=True, pattern=r"^.setlist ?(\w*)? (global|local)")
-@errors_handler
+@grp_exclude()
 async def setliststate(event):
     """ For .setlist command, changes the state of a list. """
     cmd = event.text[0]
@@ -317,7 +317,7 @@ async def setliststate(event):
 
 
 @register(pattern=r"\$\w*", disable_edited=True)
-@errors_handler
+@grp_exclude()
 async def lists_logic(event):
     """ Lists logic. """
     try:
@@ -350,7 +350,7 @@ async def lists_logic(event):
 
 
 @register(pattern=r".getlist ?(\w*)?")
-@errors_handler
+@grp_exclude()
 async def getlist_logic(event):
     """ For .getlist, get the list by the name. """
     cmd = event.text[0]

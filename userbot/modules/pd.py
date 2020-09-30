@@ -6,7 +6,7 @@ import time
 from cowpy import cow
 
 from userbot import CMD_HELP, ZALG_LIST
-from userbot.events import register, errors_handler
+from userbot.events import register, grp_exclude
 
 PORCONI = [
 "porcodio",
@@ -24,7 +24,7 @@ PORCONI = [
 ]
 
 @register(outgoing=True, pattern="^.pd$")
-@errors_handler
+@grp_exclude()
 async def react_meme(react):
     """ Make your userbot react to everything. """
     if not react.text[0].isalpha() and react.text[0] not in ("/", "#", "@",

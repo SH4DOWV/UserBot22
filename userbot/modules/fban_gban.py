@@ -5,14 +5,14 @@
 #
 
 from userbot import bot, CMD_HELP, is_mongo_alive, is_redis_alive
-from userbot.events import register, errors_handler
+from userbot.events import register, grp_exclude
 from telethon.tl.types import MessageEntityMentionName
 from userbot.modules.dbhelper import get_fban, add_chat_fban, remove_chat_fban, get_gban, add_chat_gban, remove_chat_gban
 import asyncio
 
 
 @register(outgoing=True, pattern="^.gban")
-@errors_handler
+@grp_exclude()
 async def gban_all(msg):
     if not msg.text[0].isalpha() and msg.text[0] not in ("/", "#", "@", "!"):
         if not is_mongo_alive() or not is_redis_alive():
@@ -73,7 +73,7 @@ async def gban_all(msg):
 
 
 @register(outgoing=True, pattern="^.fban")
-@errors_handler
+@grp_exclude()
 async def fedban_all(msg):
     if not msg.text[0].isalpha() and msg.text[0] not in ("/", "#", "@", "!"):
         if not is_mongo_alive() or not is_redis_alive():
@@ -157,7 +157,7 @@ async def fedban_all(msg):
 
 
 @register(outgoing=True, pattern="^.addfban")
-@errors_handler
+@grp_exclude()
 async def add_to_fban(chat):
     if not is_mongo_alive() or not is_redis_alive():
         await chat.edit("`Database connections failing!`")
@@ -167,7 +167,7 @@ async def add_to_fban(chat):
 
 
 @register(outgoing=True, pattern="^.addgban")
-@errors_handler
+@grp_exclude()
 async def add_to_gban(chat):
     if not is_mongo_alive() or not is_redis_alive():
         await chat.edit("`Database connections failing!`")
@@ -178,7 +178,7 @@ async def add_to_gban(chat):
 
 
 @register(outgoing=True, pattern="^.removefban")
-@errors_handler
+@grp_exclude()
 async def remove_from_fban(chat):
     if not is_mongo_alive() or not is_redis_alive():
         await chat.edit("`Database connections failing!`")
@@ -188,7 +188,7 @@ async def remove_from_fban(chat):
 
 
 @register(outgoing=True, pattern="^.removegban")
-@errors_handler
+@grp_exclude()
 async def remove_from_gban(chat):
     if not is_mongo_alive() or not is_redis_alive():
         await chat.edit("`Database connections failing!`")
